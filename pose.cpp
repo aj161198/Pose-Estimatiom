@@ -1,8 +1,10 @@
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include "opencv2/calib3d/calib3d.hpp"
-#include <opencv2/highgui.hpp>
+#include "opencv2/highgui/highgui.hpp"
 #include <iostream>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/nonfree/nonfree.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 using namespace cv;
 using namespace std;
@@ -44,7 +46,7 @@ Vec3f rotationMatrixToEulerAngles(Mat &R)
         y = atan2(-R.at<double>(2,0), sy);
         z = 0;
     }
-    return Vec3f(x, y, z);    
+    return Vec3f(x * 180 / CV_PI, y * 180 / CV_PI, z * 180 / CV_PI);    
 }
 
 int main()
@@ -59,15 +61,15 @@ int main()
 	namedWindow("Original",CV_WINDOW_AUTOSIZE);		//Create Window to show Original frame
 	namedWindow("Contours",CV_WINDOW_AUTOSIZE);	//Create Window to show Quadrangle contour
 	
-	int low_r = 12, low_b = 0, low_g = 60, high_r = 121, high_b = 255, high_g = 173;	//Initializes the track-bar values 	
+	int low_r = 0, low_b = 168, low_g = 0, high_r = 255, high_b = 255, high_g = 152;	//Initializes the track-bar values 	
 	
-	/*createTrackbar("Low_Red", "Original", &low_r, 255);			// Create Track-Bar
+	createTrackbar("Low_Red", "Original", &low_r, 255);			// Create Track-Bar
 	createTrackbar("Low_Blue", "Original", &low_b, 255);		
 	createTrackbar("Low_Green", "Original", &low_g, 255);
 	createTrackbar("High_Red", "Original", &high_r, 255);
 	createTrackbar("High_Blue", "Original", &high_b, 255);
 	createTrackbar("High_Green", "Original", &high_g, 255);
-	*/
+	
 	
 	
 	while(1)
@@ -83,28 +85,27 @@ int main()
 	
 		imshow("Original", frame);			// Shows the original frames		
 		
-		/*	
-		setTrackbarPos("Low_Red","org", low_r);			// Set the values of Trackbar in runtime to threshold.
-		setTrackbarPos("Low_Blue","org", low_b);
-		setTrackbarPos("Low_Green","org", low_g);
-		setTrackbarPos("High_Red","org", high_r);
-		setTrackbarPos("High_Blue","org", high_b);
-		setTrackbarPos("High_Green","org", high_g);	
-		*/
-
-		//<----------------------------------------------------------------------------------------------------------------------------------->//
+			
+		setTrackbarPos("Low_Red","Original", low_r);			// Set the values of Trackbar in runtime to threshold.
+		setTrackbarPos("Low_Blue","Original", low_b);
+		setTrackbarPos("Low_Green","Original", low_g);
+		setTrackbarPos("High_Red","Original", high_r);
+		setTrackbarPos("High_Blue","Original", high_b);
+		setTrackbarPos("High_Green","Original", high_g);	
+//<--------------------------------------------------------------------------------------------------------------------------->//
 		Mat thresh;			
 		inRange(frame,Scalar(low_b,low_g,low_r), Scalar(high_b,high_g,high_r),thresh);	//Threshold using inRange Function
 	
 		Mat element = getStructuringElement( MORPH_ELLIPSE, Size(5, 5));		//TO remove holes and other noises in thresholded-image
-		erode(thresh, thresh, element);
 		dilate(thresh, thresh, element);
-		dilate(thresh, thresh, element);                                       
+		erode(thresh, thresh, element);
 		erode(thresh, thresh, element);	
+		dilate(thresh, thresh, element);                                       
+		
 		
 		imshow("Thresholding", thresh);		//Shows the thresholded frames
+//<----------------------------------------------------------------------------------------------------------------------------------->//
 
-		//<----------------------------------------------------------------------------------------------------------------------------------->//
 		Mat thresh_c = thresh.clone(); 		//Create a clone of thresholded image-thresh
 		
 		vector<vector<Point> > contours;	
@@ -213,9 +214,8 @@ int main()
 		int ind;
 		for (ind = 0; ind < 4; ind++)
 		{
-			circle(img, imagePoints[ind], 8, Scalar(255, 0, 0), 2, 8, 0);
-			sprintf(str, "%d", ind);				
-			putText(img, str, imagePoints[ind], FONT_HERSHEY_PLAIN, 7, Scalar(255, 0, 255));
+			circle(img, imagePoints[ind], 8, Scalar(255, 0, 0), 2, 8, 0);				
+			putText(img, format( "%d",ind + 1), imagePoints[ind], FONT_HERSHEY_PLAIN, 7, Scalar(255, 0, 255));
 		}				
 		imshow("Contours", img);									// Shows the contour image
 		imshow("Original", frame);	
@@ -230,9 +230,9 @@ int main()
 		
 		vector<Point3d> worldPoints;
 		worldPoints.push_back(Point3d(0.0f, 0.0f, 0.0f));
-		worldPoints.push_back(Point3d(121.0f, 0.0f, 0.0f));
-		worldPoints.push_back(Point3d(121.0f, 126.0f, 0.0f));
-    		worldPoints.push_back(Point3d(0.0f, 126.0f, 0.0f)); 			// World Points initaialization              
+		worldPoints.push_back(Point3d(50.0f, 0.0f, 0.0f));
+		worldPoints.push_back(Point3d(50.0f, 50.0f, 0.0f));
+    		worldPoints.push_back(Point3d(0.0f, 50.0f, 0.0f)); 			// World Points initaialization              
     		         
 			
    		Mat rvec, R; 
@@ -243,11 +243,11 @@ int main()
 		Rodrigues(rvec, R);
 		Vec3b angles = rotationMatrixToEulerAngles(R);	// Stores Euler angles
 		
-		//projectPoints(worldPoints, rvec, tvec, cameraMatrix, distCoeffs, answers);		/* To check the code */
+		projectPoints(worldPoints, rvec, tvec, cameraMatrix, distCoeffs, answers);		/* To check the code */
 		//cout << "Image_Points" << imagePoints << endl;	
 		//cout << "Answer_Points" << answers << endl;
 		cout << "TVEC:- " << tvec << endl;		
-		
+		cout << "Angles:-" << angles << endl;
 		//<----------------------------------------------------------------------------------------------------------------------------------->//
         	
 		if (waitKey(0) == 27) 		// Waits for 300seconds and escapes the loop if Esc is pressed
